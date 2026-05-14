@@ -2,7 +2,7 @@ __pycache__/
 .venv/
 venv/
 a-full_source.html
-b-single-article.html
+b-single_article.html
 c-a_tags_links.html
 files/
 words_to_filter.txt
