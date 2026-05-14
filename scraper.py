@@ -1,0 +1,162 @@
+from bs4 import BeautifulSoup
+from curl_cffi import requests
+import sys
+import random
+import time
+import webbrowser
+import re
+from file_manager import FileManager
+from queue import Queue
+
+
+class ScraperEngine:
+    def __init__(self):
+        self.base_url = "https://www.stepstone.de"
+        self.session = requests.Session()
+        self.file_manager = FileManager()
+        self.current_page = 1
+
+
+    def run_scraper(self, page_amount, job_queue: Queue):
+        seen_links = self.file_manager.get_seen_links()
+
+        while self.current_page != page_amount:
+            html_text = self.fetch_html_text(self.current_page, self.session)
+
+            if html_text is None:
+                self.session = requests.Session()
+                return # Handle response in GUI
+            
+            else:
+                raw_job_links = self.extract_raw_links(html_text)
+                job_urls = self.get_job_data(raw_job_links)
+                unseen_jobs = self.filter_bad_words(job_urls)
+
+                self.file_manager.populate_unfiltered_file(job_urls) # Populate until ~ 20k+
+                self.file_manager.populate_unseen_file(unseen_jobs)
+
+                current_batch = self.get_list_after_compare(unseen_jobs, seen_links)
+                job_queue
+                # Callback(current_batch)
+
+                self.anti_bot_sleep()
+                self.current_page += 1
+
+        print("Scrape finished.")
+
+
+    def get_next_batch(self, final_list, amount=20):
+        batch = []
+        if len(final_list) > amount:
+            pass
+        else:
+            amount = len(final_list)
+        
+        for _ in range(amount+1):
+            batch.pop(0)
+
+        return batch
+
+
+    #region HELPERS
+    def get_query_url(self, page_number=1):
+        return (
+            f"https://www.stepstone.de/jobs/software-entwickler-in-or-backend-entwickler-in-net-"
+            f"or-backend-entwickler-in-c%23-or-backendentwickler-in-or-backendentwicklung-"
+            f"or-python-entwickler-in-or-c%23-entwickler-in-or-net-entwickler-in/in-stuttgart-"
+            f"or-t%C3%BCbingen-or-ulm?radius=50&page={page_number}&sort=2&action=sort_publish&q"
+            f"=(Software-Entwickler%2fin)+OR+(Backend-Entwickler%2fin+.NET)"
+            f"+OR+(Backend-Entwickler%2fin+C%23)+OR+(Backendentwickler%2fin)"
+            f"+OR+(Backendentwicklung)+OR+(Python-Entwickler%2fin)+OR+(C%23-Entwickler%2fin)"
+            f"+OR+(.NET-Entwickler%2fin)&searchOrigin=Resultlist_top-search"
+        )
+
+
+    def fetch_html_text(self, page_number, session):
+        query_url = self.get_query_url(page_number)
+        fake_headers = {"Referer": self.base_url}
+
+        try:
+            raw_html = session.get(query_url, impersonate="chrome", timeout=15, headers=fake_headers)
+            if raw_html.status_code != 200:
+                print(f"Error: Stepstone responded with status {raw_html.status_code}")
+                return
+        except Exception as e:
+            print(f"[Exception Error] - Details: {e}")
+            return # implicit None
+        
+        return raw_html.text
+
+
+    def extract_raw_links(self, html_text):
+        soup = BeautifulSoup(html_text, 'lxml')
+        return soup.select('a[href^="/stellenangebote--"]')
+
+
+    def get_job_data(self, raw_job_links):
+        job_data = []
+
+        for link in raw_job_links:
+            job_url = f"{self.base_url}{link['href']}"
+            job_title = link.get_text(strip=True)
+            job_dict = {"title": job_title, "url": job_url}
+            job_data.append(job_dict)
+
+        return job_data
+
+
+    def filter_bad_words(self, list_to_filter):
+        final_jobs_list = []
+        filter_words = self.file_manager.get_words_to_filter()
+
+        for url in list_to_filter:
+            title_to_check = url["title"].lower()
+            wanted = True
+            
+            for word in filter_words:
+                pattern = rf"\b{re.escape(word.lower())}\b"
+                
+                if re.search(pattern, title_to_check):
+                    wanted = False
+                    # print(f"Filtered for '{word}': {url}")
+                    break
+            
+            if wanted:
+                final_jobs_list.append(url)
+
+        return final_jobs_list
+
+
+    def anti_bot_sleep(self, read_countdown=0):
+        sleeping = 0
+        reading = 0
+        if read_countdown == 4:
+            reading_pause = random.uniform(29.9, 60.1)
+            while reading < reading_pause:
+                print(f"\r- Simulating reading pause for {reading_pause - reading:.2f}...", end="")
+                time.sleep(0.1)
+                reading += 0.1
+            print()
+
+        sleep_time = random.uniform(6.4, 11.2)
+        while sleeping < sleep_time:
+            print(f"\r- Iterating next page in {sleep_time - sleeping:.2f} seconds...", end="")
+            time.sleep(0.1)
+            sleeping += 0.1
+        print("\n")
+
+
+    def get_list_after_compare(self, jobs_to_check, seen_links):
+        final_list = []
+        for job in jobs_to_check:
+            if job["url"] not in seen_links:
+                final_list.append(job)
+        return final_list
+    #endregion
+
+
+
+
+
+
+            
