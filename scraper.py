@@ -1,9 +1,7 @@
 from bs4 import BeautifulSoup
 from curl_cffi import requests
-import sys
 import random
 import time
-import webbrowser
 import re
 from file_manager import FileManager
 from queue import Queue
@@ -15,12 +13,19 @@ class ScraperEngine:
         self.session = requests.Session()
         self.file_manager = FileManager()
         self.current_page = 1
+        self.stop_signal = False
 
 
     def run_scraper(self, page_amount, job_queue: Queue):
         seen_links = self.file_manager.get_seen_links()
+        jobs_found = 0
+        filtered_jobs = 0
+        seen_jobs = 0
 
-        while self.current_page != page_amount:
+        while self.current_page <= page_amount:
+            if self.stop_signal:
+                break 
+            print(f"Scraping page: {self.current_page}...")
             html_text = self.fetch_html_text(self.current_page, self.session)
 
             if html_text is None:
@@ -36,9 +41,18 @@ class ScraperEngine:
                 self.file_manager.populate_unseen_file(unseen_jobs)
 
                 current_batch = self.get_list_after_compare(unseen_jobs, seen_links)
-                job_queue
-                # Callback(current_batch)
-
+                jobs_found += len(job_urls)
+                seen_jobs += (len(unseen_jobs) - len(current_batch))
+                filtered_jobs += (len(job_urls) - len(unseen_jobs))
+                package = {
+                    "jobs": current_batch,
+                    "scraped_jobs_amount": jobs_found,
+                    "filtered_jobs_amount": filtered_jobs,
+                    "seen_jobs_amount": seen_jobs,
+                    "current_page": self.current_page
+                }
+                
+                job_queue.put(package)
                 self.anti_bot_sleep()
                 self.current_page += 1
 

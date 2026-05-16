@@ -28,9 +28,8 @@ class FileManager:
         else: return False
 
 
-    def create_cache_file(self, current_job_link, link_list):
-        cache_list = [current_job_link] + link_list
-        self.__populate_json("cache", cache_list)
+    def create_cache_file(self, cache_data):
+        self.__populate_json("cache", cache_data)
     
 
     def delete_cache_file(self):
@@ -38,8 +37,8 @@ class FileManager:
         if os.path.exists(file):
             os.remove(file)
 
-#region POPULATER
 
+#region POPULATER
     def populate_seen_file(self, content):
         self.__populate_file("seen", content)
 
@@ -54,7 +53,6 @@ class FileManager:
 
     def populate_filter_file(self, content):
         self.__populate_file("filter", content)
-
 #endregion
 
 #region GETERS
@@ -98,15 +96,16 @@ class FileManager:
     def __populate_file(self, file_key, content):
         file_name = self.files[file_key]
         with open(file_name, "a") as file:
-            for line in content:
-                file.write(f"{line}\n")
-
+            if isinstance(content, list):
+                for line in content:
+                    file.write(f"{line}\n")
+            else:
+                file.write(f"{content}\n")
+            
 
     def __populate_json(self, file_key, content):
         current_data = self.__read_json_file(file_key)
         current_data.extend(content)
         with open(self.files[file_key], "w", encoding="utf-8") as file:
             json.dump(current_data, file, indent=4, ensure_ascii=False)
-
-
 #endregion

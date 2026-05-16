@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests
 import json
 
+"""
 base_url = "https://www.stepstone.de"
 session = requests.Session()
 
@@ -54,20 +55,7 @@ with open("test.json", "w", encoding="utf-8") as file:
     json.dump(job_data, file, indent=4, ensure_ascii=False)
 
 
-
-
-
-
     def run_scraper(self, page_amount):
-        """
-        - Scrape Seite
-        - filter_bad_words
-        - populate_unfiltered und unseen files
-        - read unseen / seen files
-        - vergleichen
-        - callback mit dem batch
-        - dann erst anti_bot_sleep und current_page incrementen.
-        """
         while self.current_page != page_amount:
             html_text = self.fetch_html_text(self.current_page, self.session)
 
@@ -92,3 +80,10 @@ with open("test.json", "w", encoding="utf-8") as file:
         print("Scrape finished.")
             
         return self.get_final_list_after_compare(jobs_to_check, seen_links)
+"""
+
+create_job_row
+    x_btn = ...self.x.btn
+
+
+process_job
