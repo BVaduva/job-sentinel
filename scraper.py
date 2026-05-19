@@ -33,8 +33,10 @@ class ScraperEngine:
                 return # Handle response in GUI
             
             else:
-                raw_job_links = self.extract_raw_links(html_text)
-                job_urls = self.get_job_data(raw_job_links)
+                # raw_job_links = self.extract_raw_links(html_text)
+                # job_urls = self.get_job_data(raw_job_links)
+                raw_job_cards = self.extract_job_cards(html_text)
+                job_urls = self.get_job_data(raw_job_cards)
                 unseen_jobs = self.filter_bad_words(job_urls)
 
                 self.file_manager.populate_unfiltered_file(job_urls) # Populate until ~ 20k+
@@ -86,22 +88,61 @@ class ScraperEngine:
         )
 
 
-    def fetch_html_text(self, page_number, session):
+    def fetch_html_text(self, page_number, session, max_retries=3):
         query_url = self.get_query_url(page_number)
         fake_headers = {"Referer": self.base_url}
 
-        try:
-            raw_html = session.get(query_url, impersonate="chrome", timeout=15, headers=fake_headers)
-            if raw_html.status_code != 200:
-                print(f"Error: Stepstone responded with status {raw_html.status_code}")
-                return
-        except Exception as e:
-            print(f"[Exception Error] - Details: {e}")
-            return # implicit None
+        for attempt in range(max_retries):
+            try:
+                raw_html = session.get(query_url, impersonate="chrome", timeout=20, headers=fake_headers)
+                
+                if raw_html.status_code == 200:
+                    return raw_html.text
+                else:
+                    print(f"\r[Attempt {attempt + 1}/{max_retries}] Stepstone responded with {raw_html.status_code}", end="")
+            
+            except Exception as e:
+                print(f"\r[Attempt {attempt + 1}/{max_retries}] Network error/Timeout...", end="")
+            
+            if attempt < max_retries - 1:
+                sleep_time = 2 ** attempt 
+                time.sleep(sleep_time)
         
-        return raw_html.text
+        print("\n[Error] All retries failed. Skipping this page.")
+        return None
 
 
+    def extract_job_cards(self, html_text):
+        soup = BeautifulSoup(html_text, 'lxml')
+        return soup.find_all("article", attrs={"data-at": "job-item"})
+    
+
+    def get_job_data(self, job_cards):
+        job_data = []
+
+        for card in job_cards:
+            link_element = card.select_one('a[href^="/stellenangebote--"]')
+            
+            if not link_element:
+                continue
+                
+            job_url = f"{self.base_url}{link_element['href']}"
+            job_title = link_element.get_text(strip=True)
+
+            company_element = card.find(attrs={"data-at": "job-item-company-name"})
+            company_name = company_element.get_text(strip=True) if company_element else "Unbekannt"
+
+            job_dict = {
+                "title": job_title, 
+                "url": job_url, 
+                "company": company_name
+            }
+            job_data.append(job_dict)
+
+        return job_data
+
+
+    ''' w/o company name backup
     def extract_raw_links(self, html_text):
         soup = BeautifulSoup(html_text, 'lxml')
         return soup.select('a[href^="/stellenangebote--"]')
@@ -117,6 +158,7 @@ class ScraperEngine:
             job_data.append(job_dict)
 
         return job_data
+    '''
 
 
     def filter_bad_words(self, list_to_filter):
