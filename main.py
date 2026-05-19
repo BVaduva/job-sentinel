@@ -75,19 +75,40 @@ class JobSentinelGUI(ctk.CTk):
         self.status_label = ctk.CTkLabel(self, text="", font=("Arial", 32, "bold"))
         self.status_label.pack()
 
-        self.jobs_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.jobs_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.jobs_container.pack(fill="both", expand=True, padx=40)
 
+        bottom_frame = ctk.CTkFrame(self, fg_color="transparent")
+        bottom_frame.pack(side="bottom", fill="x", pady=20, padx=40)
+
+        bottom_frame.grid_columnconfigure(0, weight=1)
+        bottom_frame.grid_columnconfigure(1, weight=1)
+        bottom_frame.grid_columnconfigure(2, weight=1)
+
+        self.global_filter_btn = ctk.CTkButton(
+            bottom_frame,
+            text="Add Filter Word",
+            fg_color="#545454", 
+            hover_color="#3b3b3b",
+            font=("Arial", 28, "bold"),
+            height=60,
+            command=self._add_word_to_filter
+        )
+        self.global_filter_btn.grid(row=0, column=0, sticky="w")
+
         exit_btn = ctk.CTkButton(
-            self, text="Exit & Save", font=("Arial", 28), 
-            fg_color="#8B0000", hover_color="#5c0000", command=self._exit_app
-            )
-        exit_btn.pack(pady=20)
+            bottom_frame, text="Exit & Save", font=("Arial", 28), 
+            fg_color="#8B0000", hover_color="#5c0000", height=60,
+            command=self._exit_app
+        )
+        exit_btn.grid(row=0, column=1)
 
 
     def _create_job_row(self, job_data: dict[str, Any]) -> None:
         job_card = ctk.CTkFrame(self.jobs_container, corner_radius=15)
         job_card.pack(fill="x", pady=10, padx=10, ipady=10) 
+
+        company_name = job_data.get("company", "Unbekannt")
 
         title_label = ctk.CTkLabel(
             job_card, 
@@ -95,7 +116,16 @@ class JobSentinelGUI(ctk.CTk):
             font=("Arial", 36, "bold"),
             anchor="w"
         )
-        title_label.pack(fill="x", padx=25, pady=(10, 10))
+        title_label.pack(fill="x", padx=25, pady=(10, 0))
+
+        company_label = ctk.CTkLabel(
+            job_card,
+            text=company_name,
+            font=("Arial", 26),
+            text_color="gray70",
+            anchor="w"
+        )
+        company_label.pack(fill="x", padx=25, pady=(0, 10))
 
         button_row = ctk.CTkFrame(job_card, fg_color="transparent")
         button_row.pack(fill="x", padx=15)
@@ -118,13 +148,13 @@ class JobSentinelGUI(ctk.CTk):
         )
         skip_btn.pack(side="left", padx=10)
 
-        filter_btn = ctk.CTkButton(
-            button_row, text="Filter Word", fg_color="#545454", hover_color="#3b3b3b", 
+        note_btn = ctk.CTkButton(
+            button_row, text="Note", fg_color="transparent", hover_color="#212121", 
             width=160, height=45, font=button_font,
-            command=lambda frame=job_card, data=job_data: 
-            self._filter_word(frame, data)
+            command=lambda company_name=job_data["company"]: 
+            self._open_note_dialog(company_name)
         )
-        filter_btn.pack(side="left", padx=10)
+        note_btn.pack(side="left", padx=10)
 
 
     def _finalize_job(self, row_frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
@@ -150,24 +180,40 @@ class JobSentinelGUI(ctk.CTk):
         self._finalize_job(frame, job_data)
 
 
-    def _filter_word(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
-        filter_input = self._ask_user_for_filter_word(job_data["title"])
-        if filter_input is None:
+    def _add_word_to_filter(self) -> None:
+        new_word = self._ask_user_for_filter_word()
+
+        if new_word is None:
             return
-        elif filter_input.strip() == "":
+        elif new_word.strip() == "":
             return
-        clean_words = [word.strip() for word in filter_input.split(",")]
+        
+        clean_words = [word.strip() for word in new_word.split(",")]
         self.file_manager.populate_filter_file(clean_words)
         self._show_toast(f"Added to filter: {', '.join(clean_words)}")
-        self._finalize_job(frame, job_data)
+        self.job_pool = [
+            job for job in self.job_pool
+            if not any(word.lower() in job["title"].lower() for word in clean_words)
+        ]
+
+        self._update_status_text()
 
 
-    def _ask_user_for_filter_word(self, job_title: str) -> str:
-        instruction = "\n\n(You can add multiple words: senior, lead ...)"
-        input_window = CustomInputDialog(title="Filter Word", text=job_title + instruction)
+    def _ask_user_for_filter_word(self) -> str:
+        input_window = CustomInputDialog("filter")
         filter_input = input_window.get_input()
         return filter_input
     
+
+    def _open_note_dialog(self, company_name: str) -> None:
+        note_window = CustomInputDialog("note", company_name)
+        company_note_from_file = self.file_manager.get_company_note(company_name)
+        note_window.set_company_text(company_note_from_file)
+        company_note = note_window.get_input()
+
+        if company_note is not None:
+            self.file_manager.save_company_note(company_name, company_note)
+        
 
     def _show_toast(self, message:str) -> None:
         toast_label = ctk.CTkLabel(
