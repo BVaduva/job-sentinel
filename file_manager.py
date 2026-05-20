@@ -1,6 +1,5 @@
 import os
 import json
-# return self._read_json_file("company", {}).get(company_name, "")
 
 class FileManager:
     def __init__(self):
@@ -14,6 +13,7 @@ class FileManager:
             "seen": os.path.join(files_dir, "seen_links.txt"),
             "filter": os.path.join(files_dir, "words_to_filter.txt"),
             "company": os.path.join(files_dir, "company_notes.json"),
+            "backlog": os.path.join(files_dir, "backlog.json"),
             "cache": os.path.join(files_dir, "cached_jobs.json")
         }
 
@@ -30,9 +30,9 @@ class FileManager:
         else: return False
 
 
-    def create_cache_file(self, cache_data: dict[str, str]) -> None:
-        with open(self.files["cache"], "w", encoding="utf-8") as file:
-            json.dump(cache_data, file, indent=4, ensure_ascii=False)
+    def update_json_file(self, file_key: str, job_data: dict[str, str]) -> None:
+        with open(self.files[file_key], "w", encoding="utf-8") as file:
+            json.dump(job_data, file, indent=4, ensure_ascii=False)
     
 
     def delete_cache_file(self) -> None:
@@ -51,7 +51,9 @@ class FileManager:
 
 #region POPULATER
     def populate_seen_file(self, link: str) -> None:
-        self._populate_file("seen", link)
+        seen = self.get_seen_links()
+        if link not in seen:
+            self._populate_file("seen", link)
 
 
     def populate_unseen_file(self, job_data: dict[str, str]) -> None:
@@ -62,9 +64,14 @@ class FileManager:
         self._populate_json("unfiltered", job_data)
 
 
-    def populate_filter_file(self, words) -> None: # content list or str
+    def populate_filter_file(self, words) -> None: # words list or str
         self._populate_file("filter", words)
+
+
+    def populate_backlog_file(self, job_data: dict[str, str]) -> None:
+        self._populate_json("backlog", [job_data])
 #endregion
+
 
 #region GETERS
     def get_words_to_filter(self) -> list:
@@ -86,6 +93,10 @@ class FileManager:
     def get_company_note(self, company_name: str) -> str:
         company_note = self._read_json_file("company", {})
         return company_note.get(company_name, "")
+    
+
+    def get_backlog_jobs(self) -> dict[str, str]:
+        return self._read_json_file("backlog")
 #endregion
 
 

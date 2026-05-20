@@ -96,12 +96,25 @@ class JobSentinelGUI(ctk.CTk):
         )
         self.global_filter_btn.grid(row=0, column=0, sticky="w")
 
+        self.view_btn = ctk.CTkButton(
+            bottom_frame,
+            text="Switch to Backlog",
+            fg_color="#584848", 
+            hover_color="#312929",
+            font=("Arial", 28, "bold"),
+            height=60,
+            command=self._switch_view
+        )
+        self.view_btn.grid(row=0, column=1)
+        if self.current_view == "backlog":
+            self.view_btn.configure(text="Switch to Cache")
+
         exit_btn = ctk.CTkButton(
             bottom_frame, text="Exit & Save", font=("Arial", 28), 
             fg_color="#8B0000", hover_color="#5c0000", height=60,
             command=self._exit_app
         )
-        exit_btn.grid(row=0, column=1)
+        exit_btn.grid(row=0, column=2)
 
 
     def _create_job_row(self, job_data: dict[str, Any]) -> None:
@@ -146,7 +159,17 @@ class JobSentinelGUI(ctk.CTk):
             command=lambda frame=job_card, data=job_data: 
             self._skip_job(frame, data)
         )
+        #if self.current_view != "backlog":
         skip_btn.pack(side="left", padx=10)
+
+        backlog_btn = ctk.CTkButton(
+            button_row, text="To Backlog", fg_color="#11345F", hover_color="#18266b",
+            width=160, height=45, font=button_font,
+            command=lambda frame=job_card, data=job_data: 
+            self._job_to_backlog(frame, data)
+        )
+        if self.current_view != "backlog":
+            backlog_btn.pack(side="left", padx=10)
 
         note_btn = ctk.CTkButton(
             button_row, text="Note", fg_color="transparent", hover_color="#212121", 
@@ -173,11 +196,27 @@ class JobSentinelGUI(ctk.CTk):
     
     def _open_job(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
         webbrowser.open(job_data["url"])
-        self._finalize_job(frame, job_data)
+        # TEMP: only open job to allow adding note after checking job
+        # self._finalize_job(frame, job_data)
 
 
     def _skip_job(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
         self._finalize_job(frame, job_data)
+
+
+    def _job_to_backlog(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
+        self.file_manager.populate_backlog_file(job_data)
+        self._finalize_job(frame, job_data)
+
+
+    def _open_note_dialog(self, company_name: str) -> None:
+        note_window = CustomInputDialog("note", company_name)
+        company_note_from_file = self.file_manager.get_company_note(company_name)
+        note_window.set_company_text(company_note_from_file)
+        company_note = note_window.get_input()
+
+        if company_note is not None:
+            self.file_manager.save_company_note(company_name, company_note)
 
 
     def _add_word_to_filter(self) -> None:
@@ -204,16 +243,6 @@ class JobSentinelGUI(ctk.CTk):
         filter_input = input_window.get_input()
         return filter_input
     
-
-    def _open_note_dialog(self, company_name: str) -> None:
-        note_window = CustomInputDialog("note", company_name)
-        company_note_from_file = self.file_manager.get_company_note(company_name)
-        note_window.set_company_text(company_note_from_file)
-        company_note = note_window.get_input()
-
-        if company_note is not None:
-            self.file_manager.save_company_note(company_name, company_note)
-        
 
     def _show_toast(self, message:str) -> None:
         toast_label = ctk.CTkLabel(
@@ -298,6 +327,28 @@ class JobSentinelGUI(ctk.CTk):
         
         if self.thread.is_alive():
             self.after(500, self._check_queue)
+
+
+    def _switch_view(self):
+        if self.thread is not None and self.thread.is_alive():
+            self._show_toast("Switching disabled while scraper is working.")
+            return
+        
+        self._save_current_state()
+        self._remove_job_rows()
+        
+        if self.current_view == "backlog":
+            self.view_btn.configure(text="Switch to Backlog")
+            self.current_view = "cache"
+            self.job_pool = self.file_manager.get_cache_data()
+        else:
+            self.view_btn.configure(text="Switch to Cache")
+            self.current_view = "backlog"
+            self.job_pool = self.file_manager.get_backlog_jobs()
+        print(self.current_view)
+        self.current_batch = []
+        self._load_batch()
+        self._update_status_text()
     #endregion
 
 
@@ -323,6 +374,7 @@ class JobSentinelGUI(ctk.CTk):
         self.thread = None
         self.page_amount = 1
         self.current_batch = []
+        self.current_view = "cache"
 
 
     def _build_ui(self) -> None:
@@ -339,6 +391,16 @@ class JobSentinelGUI(ctk.CTk):
             self._create_jobs_frame()
             self._load_batch()
             self._update_status_text()
+
+
+    def _save_current_state(self):
+        cached_pool = self.current_batch + self.job_pool
+        self.file_manager.update_json_file(self.current_view, cached_pool)
+
+    
+    def _remove_job_rows(self):
+        for widget in self.jobs_container.winfo_children():
+            widget.destroy()
     #endregion
 
 
@@ -350,8 +412,7 @@ class JobSentinelGUI(ctk.CTk):
 
     def _handle_scraper_shutdown(self) -> None:
         if self.thread is None or not self.thread.is_alive():
-            cache_data = self.current_batch + self.job_pool
-            self.file_manager.create_cache_file(cache_data)
+            self._save_current_state()
             self.destroy()
         else: self.after(500, self._handle_scraper_shutdown)
     
