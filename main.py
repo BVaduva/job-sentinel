@@ -130,6 +130,8 @@ class JobSentinelGUI(ctk.CTk):
             anchor="w"
         )
         title_label.pack(fill="x", padx=25, pady=(10, 0))
+        title_label.bind("<Button-1>", lambda _ : self._copy_to_clipboard(job_data["title"]))
+        
 
         company_label = ctk.CTkLabel(
             job_card,
@@ -146,7 +148,7 @@ class JobSentinelGUI(ctk.CTk):
         button_font = ("Arial", 20, "bold")
 
         open_btn = ctk.CTkButton(
-            button_row, text="Open", fg_color="#219150", hover_color="#186b3b",
+            button_row, text="🌐 Open", fg_color="#2FA572", hover_color="#106A43",
             width=160, height=45, font=button_font,
             command=lambda frame=job_card, data=job_data: 
             self._open_job(frame, data)
@@ -154,16 +156,24 @@ class JobSentinelGUI(ctk.CTk):
         open_btn.pack(side="left", padx=10)
 
         skip_btn = ctk.CTkButton(
-            button_row, text="Skip", fg_color="#634118", hover_color="#452d11",
+            button_row, text="⏭️ Skip", fg_color="#4A4D50", hover_color="#383A3D",
             width=160, height=45, font=button_font,
             command=lambda frame=job_card, data=job_data: 
             self._skip_job(frame, data)
         )
-        #if self.current_view != "backlog":
         skip_btn.pack(side="left", padx=10)
 
+        unavail_btn = ctk.CTkButton(
+            button_row, text="❌ Unavailable", fg_color="#C93B3B", hover_color="#8B2020",
+            width=160, height=45, font=button_font,
+            command=lambda frame=job_card, data=job_data: 
+            self._mark_unavailable(frame, data)
+        )
+        if self.current_view != "backlog":
+            unavail_btn.pack(side="left", padx=10)
+
         backlog_btn = ctk.CTkButton(
-            button_row, text="To Backlog", fg_color="#11345F", hover_color="#18266b",
+            button_row, text="📥 To Backlog", fg_color="#1F538D", hover_color="#14375E",
             width=160, height=45, font=button_font,
             command=lambda frame=job_card, data=job_data: 
             self._job_to_backlog(frame, data)
@@ -172,26 +182,28 @@ class JobSentinelGUI(ctk.CTk):
             backlog_btn.pack(side="left", padx=10)
 
         note_btn = ctk.CTkButton(
-            button_row, text="Note", fg_color="transparent", hover_color="#212121", 
-            width=160, height=45, font=button_font,
+            button_row, text="📝 Note", fg_color="transparent", hover_color="#333333", 
+            width=160, height=45, font=button_font, border_width=1, border_color="#555555",
             command=lambda company_name=job_data["company"]: 
             self._open_note_dialog(company_name)
         )
         note_btn.pack(side="left", padx=10)
+        #print(job_card.winfo_atomname)
 
 
-    def _finalize_job(self, row_frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
+    def _finalize_job(
+            self, row_frame: ctk.CTkFrame, job_data: dict[str, Any], 
+            mark_seen: bool = True) -> None:
         if job_data not in self.current_batch:
             return
         
-        self.file_manager.populate_seen_file(job_data["url"])
+        if mark_seen:
+            self.file_manager.populate_seen_file(job_data["url"])
+
         self.current_batch.remove(job_data)
         row_frame.destroy()
-        self.active_jobs_in_batch -= 1
-        self._update_status_text()
-
-        if self.active_jobs_in_batch == 0:
-            self._load_batch()
+        # self._update_status_text()
+        self._fill_board()
 
     
     def _open_job(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
@@ -202,6 +214,10 @@ class JobSentinelGUI(ctk.CTk):
 
     def _skip_job(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
         self._finalize_job(frame, job_data)
+
+
+    def _mark_unavailable(self, frame:ctk.CTkFrame, job_data: dict[str, Any]) -> None:
+        self._finalize_job(frame, job_data, mark_seen=False)
 
 
     def _job_to_backlog(self, frame: ctk.CTkFrame, job_data: dict[str, Any]) -> None:
@@ -280,23 +296,23 @@ class JobSentinelGUI(ctk.CTk):
 
 
     #region UPDATES
-    def _load_batch(self) -> None:
+    def _fill_board(self) -> None:
         batch_size = min(self.BATCH_SIZE, len(self.job_pool))
-        self.active_jobs_in_batch = batch_size
 
         if batch_size == 0:
             self.status_label.configure(text="Done! No more jobs to check.")
             return
 
-        for _ in range(batch_size):
+        while len(self.current_batch) < self.BATCH_SIZE and self.job_pool:
             job_data = self.job_pool.pop(0)
             self.current_batch.append(job_data)
             self._update_status_text()
             self._create_job_row(job_data)
+            self.update_idletasks()
 
 
     def _update_status_text(self) -> None:
-        total_jobs_left = len(self.job_pool) + self.active_jobs_in_batch
+        total_jobs_left = len(self.job_pool) + self.BATCH_SIZE
         self.status_label.configure(text=f"Jobs left: {total_jobs_left}")
 
 
@@ -322,8 +338,7 @@ class JobSentinelGUI(ctk.CTk):
             self.job_pool.extend(queue_package["jobs"])
             self._update_status_text()
             self._update_scraping_status(queue_package)
-            if self.active_jobs_in_batch == 0:
-                self._load_batch()
+            self._fill_board()
         
         if self.thread.is_alive():
             self.after(500, self._check_queue)
@@ -347,7 +362,7 @@ class JobSentinelGUI(ctk.CTk):
             self.job_pool = self.file_manager.get_backlog_jobs()
         print(self.current_view)
         self.current_batch = []
-        self._load_batch()
+        self._fill_board()
         self._update_status_text()
     #endregion
 
@@ -369,7 +384,6 @@ class JobSentinelGUI(ctk.CTk):
 
         # Data
         self.job_pool = []
-        self.active_jobs_in_batch = 0
         self.cache_exists = self.file_manager.check_cache()
         self.thread = None
         self.page_amount = 1
@@ -389,7 +403,7 @@ class JobSentinelGUI(ctk.CTk):
         else:
             self.job_pool = self.file_manager.get_cache_data()
             self._create_jobs_frame()
-            self._load_batch()
+            self._fill_board()
             self._update_status_text()
 
 
@@ -401,6 +415,12 @@ class JobSentinelGUI(ctk.CTk):
     def _remove_job_rows(self):
         for widget in self.jobs_container.winfo_children():
             widget.destroy()
+    
+
+    def _copy_to_clipboard(self, content: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(content)
+        self._show_toast(f"Copied '{content}' to clipboard.")
     #endregion
 
 
