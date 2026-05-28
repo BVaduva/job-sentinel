@@ -297,23 +297,25 @@ class JobSentinelGUI(ctk.CTk):
 
     #region UPDATES
     def _fill_board(self) -> None:
-        batch_size = min(self.BATCH_SIZE, len(self.job_pool))
-
-        if batch_size == 0:
-            self.status_label.configure(text="Done! No more jobs to check.")
+        if not self.job_pool:
+            self._update_status_text()
             return
-
+ 
         while len(self.current_batch) < self.BATCH_SIZE and self.job_pool:
             job_data = self.job_pool.pop(0)
             self.current_batch.append(job_data)
             self._update_status_text()
             self._create_job_row(job_data)
             self.update_idletasks()
-
-
+ 
+ 
     def _update_status_text(self) -> None:
-        total_jobs_left = len(self.job_pool) + self.BATCH_SIZE
-        self.status_label.configure(text=f"Jobs left: {total_jobs_left}")
+        total_jobs_left = len(self.job_pool) + len(self.current_batch)
+ 
+        if total_jobs_left == 0:
+            self.status_label.configure(text="Done! No more jobs to check.")
+        else:
+            self.status_label.configure(text=f"Jobs left: {total_jobs_left}")
 
 
     def _update_scraping_status(self, queue_package: dict[str, Any]) -> None:
@@ -409,7 +411,11 @@ class JobSentinelGUI(ctk.CTk):
 
     def _save_current_state(self):
         cached_pool = self.current_batch + self.job_pool
-        self.file_manager.update_json_file(self.current_view, cached_pool)
+        if len(cached_pool) != 0:
+            self.file_manager.update_json_file(self.current_view, cached_pool)
+        else:
+            self.file_manager.delete_cache_file()
+        self.file_manager.clean_filter_file()
 
     
     def _remove_job_rows(self):

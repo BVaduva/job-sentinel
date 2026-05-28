@@ -61,20 +61,9 @@ class ScraperEngine:
         print("Scrape finished.")
 
 
-    def get_next_batch(self, final_list, amount=20):
-        batch = []
-        if len(final_list) > amount:
-            pass
-        else:
-            amount = len(final_list)
-        
-        for _ in range(amount+1):
-            batch.pop(0)
-
-        return batch
-
-
     #region HELPERS
+    # Backend Allround
+    
     def get_query_url(self, page_number=1):
         return (
             f"https://www.stepstone.de/jobs/software-entwickler-in-or-backend-entwickler-in-net-"
@@ -84,9 +73,22 @@ class ScraperEngine:
             f"=(Software-Entwickler%2fin)+OR+(Backend-Entwickler%2fin+.NET)"
             f"+OR+(Backend-Entwickler%2fin+C%23)+OR+(Backendentwickler%2fin)"
             f"+OR+(Backendentwicklung)+OR+(Python-Entwickler%2fin)+OR+(C%23-Entwickler%2fin)"
-            f"+OR+(.NET-Entwickler%2fin)&searchOrigin=Resultlist_top-search"
+            f"+OR+(.NET-Entwickler%2fin)&searchOrigin=Resultlist_top-search&di=IT"
         )
+    
 
+    # Backend C#/.NET ASP
+    """
+    def get_query_url(self, page_number=1):
+        return (
+            f"https://www.stepstone.de/jobs/netc%23c%23-netc%23-developerc%23-software-architectnet-"
+            f"programmierungnet-backend-entwickler-inbackend-developer-c%23aspnet/in-stuttgart-or-ulm-"
+            f"or-t%C3%BCbingen?radius=50&page={page_number}&sort=2&action=sort_publish&q="
+            f"(.NET)%2c(C%23)%2c(C%23+.Net)%2c(C%23+Developer)%2c(C%23+Software+Architect)"
+            f"%2c(.NET-Programmierung)%2c(.NET+Backend-Entwickler%2fin)%2c(Backend+Developer+C%23)%2c(ASP.NET)"
+            f"&searchOrigin=Resultlist_top-search&di=IT"
+        )
+    """
 
     def fetch_html_text(self, page_number, session, max_retries=3):
         query_url = self.get_query_url(page_number)

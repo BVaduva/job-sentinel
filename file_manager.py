@@ -132,9 +132,22 @@ class FileManager:
                 file.write(f"{content}\n")
             
 
-    def _populate_json(self, file_key:str, content: list) -> None:
+    def _populate_json(self, file_key: str, content: list) -> None:
         current_data = self._read_json_file(file_key)
         current_data.extend(content)
         with open(self.files[file_key], "w", encoding="utf-8") as file:
             json.dump(current_data, file, indent=4, ensure_ascii=False)
+#endregion
+
+
+#region UTILITY
+    def clean_filter_file(self) -> None:
+        filter_file = self.files["filter"]
+        with open(filter_file, "r", encoding="utf-8") as file:
+            words = [line.strip().lower() for line in file if line.strip()]
+
+        unique_sorted_words = sorted(list(set(words)))
+        with open(filter_file, "w", encoding="utf-8") as file:
+            for word in unique_sorted_words:
+                file.write(f"{word}\n")
 #endregion
