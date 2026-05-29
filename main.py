@@ -411,10 +411,7 @@ class JobSentinelGUI(ctk.CTk):
 
     def _save_current_state(self):
         cached_pool = self.current_batch + self.job_pool
-        if len(cached_pool) != 0:
-            self.file_manager.update_json_file(self.current_view, cached_pool)
-        else:
-            self.file_manager.delete_cache_file()
+        self.file_manager.update_json_file(self.current_view, cached_pool)
         self.file_manager.clean_filter_file()
 
     

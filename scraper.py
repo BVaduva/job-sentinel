@@ -63,7 +63,7 @@ class ScraperEngine:
 
     #region HELPERS
     # Backend Allround
-    
+    """
     def get_query_url(self, page_number=1):
         return (
             f"https://www.stepstone.de/jobs/software-entwickler-in-or-backend-entwickler-in-net-"
@@ -75,10 +75,10 @@ class ScraperEngine:
             f"+OR+(Backendentwicklung)+OR+(Python-Entwickler%2fin)+OR+(C%23-Entwickler%2fin)"
             f"+OR+(.NET-Entwickler%2fin)&searchOrigin=Resultlist_top-search&di=IT"
         )
-    
+    """
 
     # Backend C#/.NET ASP
-    """
+    
     def get_query_url(self, page_number=1):
         return (
             f"https://www.stepstone.de/jobs/netc%23c%23-netc%23-developerc%23-software-architectnet-"
@@ -88,7 +88,7 @@ class ScraperEngine:
             f"%2c(.NET-Programmierung)%2c(.NET+Backend-Entwickler%2fin)%2c(Backend+Developer+C%23)%2c(ASP.NET)"
             f"&searchOrigin=Resultlist_top-search&di=IT"
         )
-    """
+    
 
     def fetch_html_text(self, page_number, session, max_retries=3):
         query_url = self.get_query_url(page_number)

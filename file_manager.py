@@ -23,11 +23,8 @@ class FileManager:
                     pass
 
 
-    def check_cache(self) -> None:
-        cache_file = self.files["cache"]
-        if os.path.exists(cache_file):
-            return True
-        else: return False
+    def check_cache(self) -> bool:
+        return bool(self._read_json_file("cache"))
 
 
     def update_json_file(self, file_key: str, job_data: dict[str, str]) -> None:
