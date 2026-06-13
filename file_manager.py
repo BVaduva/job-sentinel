@@ -9,7 +9,6 @@ class FileManager:
 
         self.files = {
             "unfiltered": os.path.join(files_dir, "unfiltered_jobdata.json"),
-            "unseen": os.path.join(files_dir, "unseen_jobs.json"),
             "seen": os.path.join(files_dir, "seen_links.txt"),
             "filter": os.path.join(files_dir, "words_to_filter.txt"),
             "company": os.path.join(files_dir, "company_notes.json"),
@@ -53,10 +52,6 @@ class FileManager:
             self._populate_file("seen", link)
 
 
-    def populate_unseen_file(self, job_data: dict[str, str]) -> None:
-        self._populate_json("unseen", job_data)
-
-
     def populate_unfiltered_file(self, job_data: dict[str, str]) -> None:
         self._populate_json("unfiltered", job_data)
 
@@ -73,10 +68,6 @@ class FileManager:
 #region GETERS
     def get_words_to_filter(self) -> list:
         return self._read_text_file("filter")
-    
-
-    def get_unseen_jobs(self) -> dict[str, str]:
-        return self._read_json_file("unseen")
     
 
     def get_seen_links(self) -> list:
